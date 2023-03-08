@@ -29,9 +29,9 @@ change.data.type<-function(data,change.to.numeric,change.to.character){
 `%not in%` <- Negate(`%in%`)
 
 
-#normalize variable function (divide by max value to scale between 0 and 1)
+#normalize variable function (divide by max in absolute value for scaling)
 normalize.max<-function(x){
-  x/max(x,na.rm=TRUE)
+  x/max(abs(x),na.rm=TRUE)
 }
 
 #function to create data frame of custom distances
@@ -67,7 +67,7 @@ custom.gower.df<-function(data,id,treatment,treatment.level,matching,matching.we
     if(numeric_ind==TRUE){
       data_tmp<-data_tmp%>%
         mutate(gower=if_else(!is.na(VAR_TREATMENT)&!is.na(VAR_CONTROL),
-                             sqrt(abs(abs(VAR_TREATMENT)-abs(VAR_CONTROL))),
+                             abs(VAR_TREATMENT-VAR_CONTROL),
                              1)*matching.weight[j-1])
     }
     if(numeric_ind==FALSE){
@@ -122,7 +122,7 @@ custom.gower.matrix<-function(data,id,treatment,treatment.level,matching,matchin
     if(numeric_ind==TRUE){
       data_tmp<-data_tmp%>%
         mutate(gower=if_else(!is.na(VAR_TREATMENT)&!is.na(VAR_CONTROL),
-                               abs(abs(VAR_TREATMENT)-abs(VAR_CONTROL))
+                             abs(VAR_TREATMENT-VAR_CONTROL)
                              ,
                              1)*matching.weight[j-1])
     }
@@ -264,7 +264,9 @@ varratio_matchit<-function(data,id,treatment,treatment.level,matching,weight,dis
 ##########UI
 ui<-navbarPage("Distance-Based Matching Program Assessment Tool",
                tabPanel("Load CSV File",
-                        fileInput("file","Choose CSV File",accept=".csv")
+                        fileInput("file","Choose CSV File",accept=".csv"),
+                        h5("How to Cite This Tool:"),
+                        h6("Deom, Gina. Fiorini, Stefano. (2023). A Rapid Approach to Learning Analytics: A Distance-Based Program Assessment Tool. LAK 23 Accepted Paper. https://www.solaresearch.org/events/lak/lak23/accepted-papers/"),
                ),
                tabPanel("Variable Parameters",
                         fluidPage(theme=shinytheme("cerulean"),
@@ -274,7 +276,7 @@ ui<-navbarPage("Distance-Based Matching Program Assessment Tool",
                                       selectInput(inputId="id",label="Unique Row Identifier:",choices=c('None Yet'),multiple=FALSE),
                                       selectInput(inputId="treatment",label="Treatment Variable:",choices=c('None Yet'),multiple=FALSE),
                                       selectInput(inputId="matching",label="Matching Variables:",choices=c('None Yet'),multiple=TRUE),
-                                      #selectInput(inputId="outcome",label="Outcome Variables:",choices=colnames(data_input),multiple=TRUE),
+                                      selectInput(inputId="outcome",label="Outcome Variables:",choices=c('None Yet'),multiple=TRUE),
                                       selectInput(inputId="matching.change.numeric",label="Select Character Variables to Change to Numeric:",choices=c('None Yet'),multiple=TRUE),
                                       selectInput(inputId="matching.change.character",label="Select Numeric Variables to Change to Character:",choices=c('None Yet'),multiple=TRUE),
                                       submitButton("Submit", icon("arrows-rotate"))
@@ -283,7 +285,7 @@ ui<-navbarPage("Distance-Based Matching Program Assessment Tool",
                                       h4("Treatment Level & Data Types:"),
                                       uiOutput("treatment.levels"),
                                       submitButton("Submit", icon("arrows-rotate")),
-                                      h4("Review Matching Variable Data Types"),
+                                      h4("Review Matching and Outcome Variable Data Types"),
                                       verbatimTextOutput("data.var.type")
                                     )
                                   )
@@ -355,6 +357,7 @@ server<-function(input,output,session){
     updateSelectInput(session,"id",label="Unique Row Identifier:",choices=c('Choose',colnames(mytable)))
     updateSelectInput(session,"treatment",label="Treatment Variable:",choices=c('Choose',colnames(mytable)))
     updateSelectInput(session,"matching",label="Matching Variables:",choices=colnames(mytable))
+    updateSelectInput(session,"outcome",label="Outcome Variables:",choices=colnames(mytable))
     updateSelectInput(session,"matching.change.numeric",label="Select Character Variables to Change to Numeric:",choices=c('Choose',colnames(mytable[,unlist(lapply(mytable,is.character))])))
     updateSelectInput(session,"matching.change.character",label="Select Numeric Variables to Change to Character:",choices=c('Choose',colnames(mytable[,unlist(lapply(mytable,is.numeric))])))
   })
@@ -368,7 +371,7 @@ server<-function(input,output,session){
                               change.to.numeric=input$matching.change.numeric,
                               change.to.character=input$matching.change.character)
     x.match<-x.match%>%
-      select(input$matching#,input$outcome
+      select(input$matching,input$outcome
       )
     sapply(x.match,typeof)
   })
@@ -604,30 +607,46 @@ server<-function(input,output,session){
   })
   matching_parameters<-reactive({
     num.match.var<-length(input$matching)
+    num.outcome.var<-length(input$outcome)
     weight.vector<-sapply(1:num.match.var, function(i) {
       input[[paste0("match", i)]]
     })
     parameter<-c('Unique Row Identifier',
                  'Treatment Variable',
                  rep('Matching Variable',num.match.var),
+                 rep('Outcome Variable',num.outcome.var),
                  'Matching Algorithm',
                  'Matching Ratio')
     variable<-c(input$id,
                 input$treatment,
                 input$matching,
+                input$outcome,
                 input$matching.algorithm,
                 input[["ratio.f"]])
     weight_level<-c(NA,
                     input[["levels"]],
                     weight.vector,
                     NA,
+                    NA,
                     NA)
+    data_tmp<-matched_data()%>%
+      select(c(input$matching,input$outcome))
+    data_type_tmp<-data.frame(sapply(data_tmp,typeof))
+    names(data_type_tmp)<-c('type')
+    data_type_tmp<-data_type_tmp$type
+    data_type<-c(NA,
+                 NA,
+                 data_type_tmp,
+                 NA,
+                 NA)
     parameter_summary<-data.frame(cbind(parameter,
                                         variable,
-                                        weight_level))
+                                        weight_level,
+                                        data_type))
     names(parameter_summary)<-c('PARAMETER',
                                 'VALUE',
-                                'WEIGHT_OR_LEVEL')
+                                'WEIGHT_OR_LEVEL',
+                                'DATA_TYPE')
     parameter_summary
   })
   output$matching_parameters_print<-renderPrint({
