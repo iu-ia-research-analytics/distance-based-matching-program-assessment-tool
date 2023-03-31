@@ -266,7 +266,7 @@ ui<-navbarPage("Distance-Based Matching Program Assessment Tool",
                tabPanel("Load CSV File",
                         fileInput("file","Choose CSV File",accept=".csv"),
                         h5("How to Cite This Tool:"),
-                        h6("Deom, Gina. Fiorini, Stefano. (2023). A Rapid Approach to Learning Analytics: A Distance-Based Program Assessment Tool. LAK 23 Accepted Paper. https://www.solaresearch.org/events/lak/lak23/accepted-papers/"),
+                        h6("Deom, Gina. Fiorini, Stefano. (2023). A Rapid Approach to Learning Analytics: A Distance-Based Program Assessment Tool. LAK 23 Accepted Paper, p. 41-44. https://www.solaresearch.org/wp-content/uploads/2023/03/LAK23_CompanionProceedings.pdf"),
                ),
                tabPanel("Variable Parameters",
                         fluidPage(theme=shinytheme("cerulean"),
@@ -626,11 +626,10 @@ server<-function(input,output,session){
     weight_level<-c(NA,
                     input[["levels"]],
                     weight.vector,
-                    NA,
-                    NA,
-                    NA)
+                    rep(NA,num.outcome.var+2))
+    input_outcome_tmp<-input$outcome
     data_tmp<-matched_data()%>%
-      select(c(input$matching,input$outcome))
+      select(input$matching,input_outcome_tmp)
     data_type_tmp<-data.frame(sapply(data_tmp,typeof))
     names(data_type_tmp)<-c('type')
     data_type_tmp<-data_type_tmp$type
@@ -639,14 +638,22 @@ server<-function(input,output,session){
                  data_type_tmp,
                  NA,
                  NA)
+    description<-rep(NA,length(data_type))
+    var_type<-rep(NA,length(data_type))
     parameter_summary<-data.frame(cbind(parameter,
                                         variable,
                                         weight_level,
-                                        data_type))
+                                        data_type,
+                                        description,
+                                        var_type
+                                        ))
     names(parameter_summary)<-c('PARAMETER',
                                 'VALUE',
                                 'WEIGHT_OR_LEVEL',
-                                'DATA_TYPE')
+                                'DATA_TYPE',
+                                'description',
+                                'var_type'
+                                )
     parameter_summary
   })
   output$matching_parameters_print<-renderPrint({
