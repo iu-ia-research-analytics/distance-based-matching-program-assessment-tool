@@ -1,3 +1,14 @@
+################################################################################
+# Distance-Based Matching Program Assessment Tool
+# Author: Gina M. Deom
+# Maintenance Contact: iara@iu.edu
+# Date: Oct 4 2023
+# Acknowledgements: Project initiated by IUIA Research & Analytics
+# with funding and support provided by the Office of the Vice Provost for 
+# Undergraduate Education (OVPUE) at Indiana University - Bloomington
+################################################################################
+
+
 ##########Packages
 library(shiny)
 library(shinythemes)
@@ -343,6 +354,7 @@ ui<-navbarPage("Distance-Based Matching Program Assessment Tool",
 
 ##########Server
 server<-function(input,output,session){
+  options(shiny.maxRequestSize=30*1024^2) 
   data_input <- reactive({
     file <- input$file
     ext <- tools::file_ext(file$datapath)
@@ -646,14 +658,14 @@ server<-function(input,output,session){
                                         data_type,
                                         description,
                                         var_type
-                                        ))
+    ))
     names(parameter_summary)<-c('PARAMETER',
                                 'VALUE',
                                 'WEIGHT_OR_LEVEL',
                                 'DATA_TYPE',
                                 'description',
                                 'var_type'
-                                )
+    )
     parameter_summary
   })
   output$matching_parameters_print<-renderPrint({
