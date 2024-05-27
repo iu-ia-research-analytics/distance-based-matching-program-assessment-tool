@@ -306,10 +306,12 @@ ui<-navbarPage("Distance-Based Matching Program Assessment Tool",
                         sidebarLayout(
                           sidebarPanel(
                             h2("Set Matching Variable Weights:"),
+                            h5("If using Propensity Score Matching, skip to Matching Parameters Section."),
                             uiOutput("sliders"),
                             h2("Set Matching Parameters:"),
                             #selectInput(inputId="matching.type",label="Matching Type",choices=c('Fixed Ratio Matching'#,'Variable Ratio Matching (only use if available.ratio>=3)'
                             #                                                                    ),selected='Fixed Ratio Matching',multiple=FALSE),
+                            selectInput(inputId="matching.type",label="Matching Type",choices=c('Distance-Based Matching','Propensity Score Matching'),selected='Distance-Based Matching',multiple=FALSE),
                             selectInput(inputId="matching.algorithm",label="Matching Algorithm",choices=c('nearest','optimal'),selected='nearest',multiple=FALSE),
                             submitButton("Submit", icon("arrows-rotate"))
                           ),
@@ -464,7 +466,7 @@ server<-function(input,output,session){
     selectInput(inputId="matching.filter",label="Select Matching Variable:",choices=unique(input$matching),selected=input$matching[1],multiple=FALSE)
   })
   matched_data<-reactive({
-    # if(input$matching.type=='Fixed Ratio Matching'){
+     if(input$matching.type=='Distance-Based Matching'){
     data_tmp<-data_input_update()
     #data_tmp$TREATMENT_INDICATOR=ifelse(data_tmp[,input$treatment]==input[["levels"]],1,0)
     num.match.var<-length(input$matching)
@@ -487,34 +489,18 @@ server<-function(input,output,session){
                    replace=FALSE, #TRUE/FALSE identifying if matching done with replacement; i.e. if control units can be matched to more than one treatment (FALSE matching done without replacement)
                    ratio=input[["ratio.f"]]) #ratio of number of controls to number of treatments
     match.data(m.out)
-    # }
-    # else if(input$matching.type=='Variable Ratio Matching (only use if available.ratio>=3)'){
-    #   data_tmp<-data_input_update()
-    #   num.match.var<-length(input$matching)
-    #   weight.vector<-sapply(1:num.match.var, function(i) {
-    #     input[[paste0("match", i)]]
-    #   })
-    #   distance_matrix<-custom.gower.matrix(
-    #     data=data_tmp,
-    #     id=input$id,
-    #     treatment=input$treatment,
-    #     treatment.level=input[["levels"]],
-    #     matching=input$matching,
-    #     matching.weight = weight.vector
-    #   )
-    #   varratio_matchit(data=data_tmp,
-    #                    id=input$id,
-    #                    treatment=input$treatment,
-    #                    treatment.level=input[["levels"]],
-    #                    matching=input$matching,
-    #                    weight=weight.vector,
-    #                    distance.matrix=distance_matrix,
-    #                    method=input$matching.algorithm,
-    #                    avgratio=input[["ratio.vra"]],
-    #                    maxratio=input[["ratio.vra.max"]]
-    #                    
-    #   )
-    #  }
+    }
+    else if(input$matching.type=='Propensity Score Matching'){
+      data_tmp<-data_input_update()
+      data_tmp<-data_tmp[complete.cases(data_tmp[,input$matching]),]
+      n_treatment<-nrow(data_tmp%>%dplyr::filter(TREATMENT_INDICATOR==1))
+      m.out<-matchit(formula=formula(paste('TREATMENT_INDICATOR~',paste(input$matching,collapse = " + "))),
+                     data=data_tmp,
+                     method=ifelse(n_treatment<=1,'optimal',input$matching.algorithm), #matching method (i.e. nearest or optimal)
+                     replace=FALSE, #TRUE/FALSE identifying if matching done with replacement; i.e. if control units can be matched to more than one treatment (FALSE matching done without replacement)
+                     ratio=input[["ratio.f"]])
+      match.data(m.out)
+    }
   })
   distance_vector<-reactive({
     data_tmp<-data_input_update()

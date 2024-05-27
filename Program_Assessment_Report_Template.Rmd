@@ -48,10 +48,10 @@ library(ggplot2)
 ################################################################################
 
 # Change File Path to Parameters File from Matching Application
-parameters <- read.csv("C:\\Demo\\parameters.csv")
+parameters <- read.csv("C:\\Demo\\data_parameters.csv")
 
 # Change File Path to Matched Data File from Matching Application
-matches <- read.csv("C:\\Demo\\matches.csv")
+matches <- read.csv("C:\\Demo\\data_matches.csv")
 
 
 #set up dataset with variable descriptions (if description missing, replace with VALUE)
@@ -470,4 +470,19 @@ if (nrow(outcome_variables_numeric) > 0) {
     cat("  \n")
   }
 }
+```
+
+
+```{r, include=FALSE}
+
+##Example of Linear Regression Model for Course Grade (simulated data set)
+
+# linear.reg.model<-lm(grade~factor(female)+
+#                        factor(ethnicity)+
+#                        factor(first_gen)+
+#                        factor(lowincome)+
+#                        high_school_gpa+
+#                        factor(treatment_flag),
+#                      data=matches)
+# summary(linear.reg.model)
 ```
